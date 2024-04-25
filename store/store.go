@@ -10,6 +10,7 @@ type Bin struct {
 	Alias     string    `json:"alias"`
 	Contain   string    `json:"contain"`
 	Clic      int32     `json:"clic"`
+	UserId    User      `json:"user_id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -19,6 +20,12 @@ type Statistics struct {
 	clicByBin any   `json:"clic_by_bin"`
 }
 
+type User struct {
+	ID        			string    `json:"id"`
+	Email     			string    `json:"email"`
+	MotDePasse      string    `json:"mot_de_passe"`
+}
+
 type Store interface {
 	CreateBin(ctx context.Context, task Bin) (*Bin, error)
 	GetBinByAlias(ctx context.Context, alias string) (*Bin, error)
@@ -26,4 +33,6 @@ type Store interface {
 	GetStats(ctx context.Context) (*Statistics, error)
 	UpdateBin(ctx context.Context, task Bin) (*Bin, error)
 	DeleteBinByID(ctx context.Context, id string) (*Bin, error)
+	GetUserByEmail(ctx context.Context, email string) (*User, error)
+	CreateUser(ctx context.Context, user User) (*User, error)
 }

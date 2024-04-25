@@ -3,10 +3,11 @@ package store
 import (
 	"context"
 	"encoding/json"
-
+	"time"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type redisDB struct {
@@ -95,8 +96,15 @@ func (e *redisDB) CreateBin(ctx context.Context, bin Bin) (*Bin, error) {
 		return nil, errors.Wrapf(err, "couldnt create bin %s", bin.ID)
 	}
 
+	expiration := 30 * 24 * time.Hour
+	err = e.SetBinExpiration(ctx, bin.ID, expiration)
+	if err != nil {
+			return nil, errors.Wrapf(err, "couldnt set expiration for bin %s", bin.ID)
+	}
+
 	return &bin, nil
 }
+
 func (e *redisDB) GetBinByAlias(ctx context.Context, alias string) (*Bin, error) {
 	if alias == "" {
 		return nil, errors.Errorf("there is no alias provided")
@@ -160,4 +168,52 @@ func (e *redisDB) DeleteBinByID(ctx context.Context, id string) (*Bin, error) {
 	}
 
 	return &t, nil
+}
+
+func (e *redisDB) SetBinExpiration(ctx context.Context, binID string, expiration time.Duration) error {
+	key := "bin:" + binID
+	return e.client.Expire(ctx, key, expiration).Err()
+}
+
+func (e *redisDB) GetUserByEmail(ctx context.Context, email string) (*User, error) {
+	if email == "" {
+			return nil, errors.Errorf("there is no email provided")
+	}
+
+	val, err := e.client.Get(ctx, "user:"+email).Result()
+	if err != nil {
+			return nil, errors.Wrapf(err, "couldnt query for user %s", email)
+	}
+
+	var user User
+	if err := json.Unmarshal([]byte(val), &user); err != nil {
+			return nil, errors.Wrap(err, "couldnt parsing user from string")
+	}
+
+	return &user, nil
+}
+
+func (e *redisDB) CreateUser(ctx context.Context, user User) (*User, error) {
+	userID := uuid.NewString()
+	user.ID = userID
+
+	// Hacher le mot de passe
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.MotDePasse), bcrypt.DefaultCost)
+	if err != nil {
+			return nil, errors.Wrap(err, "failed to hash password")
+	}
+	user.MotDePasse = string(hashedPassword)
+
+	userData, err := json.Marshal(user)
+	if err != nil {
+			return nil, errors.Wrap(err, "failed to marshal user data")
+	}
+
+	key := "user:" + userID
+	err = e.client.Set(ctx, key, string(userData), 0).Err()
+	if err != nil {
+			return nil, errors.Wrap(err, "failed to create user in database")
+	}
+
+	return &user, nil
 }
