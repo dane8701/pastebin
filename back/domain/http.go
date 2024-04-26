@@ -203,6 +203,21 @@ func ServeAPI(svc store.Store, secretKey []byte) func() error {
 			}
 		}
 
+
+		getUsers := func(w http.ResponseWriter, r *http.Request) {
+			users, err := svc.GetAllUsers(r.Context())
+			if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(users); err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+			}
+		}
+
 		inscriptionUtilisateur := func(w http.ResponseWriter, r *http.Request) {
 			var user store.User
 			if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
@@ -271,6 +286,40 @@ func ServeAPI(svc store.Store, secretKey []byte) func() error {
 			json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
 		}
 
+		getUsersByEmail := func(w http.ResponseWriter, r *http.Request) {
+			var requestData struct {
+					Email string `json:"email"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
+					http.Error(w, "Failed to parse request body", http.StatusBadRequest)
+					return
+			}
+			defer r.Body.Close()
+	
+			email := requestData.Email
+			if email == "" {
+					http.Error(w, "No email provided", http.StatusBadRequest)
+					return
+			}
+	
+			user, err := svc.GetUserByEmail(r.Context(), email)
+			if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+			}
+	
+			if user == nil {
+					http.Error(w, "User not found", http.StatusNotFound)
+					return
+			}
+	
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(user); err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+			}
+		}	
+
 		router := chi.NewRouter()
 
 		router.Route("/", func(r chi.Router) {
@@ -281,10 +330,12 @@ func ServeAPI(svc store.Store, secretKey []byte) func() error {
 			r.Get("/bins/file/{alias}", getFileByAlias)
 			r.Put("/bins/{binID}", updateBinByID)
 			r.Delete("/bins/{binID}", deleteBinsByID)
+			r.Get("/users", getUsers)
 			r.Post("/users/auth", inscriptionUtilisateur)
 			r.Post("/users/login", func(w http.ResponseWriter, r *http.Request) {
 					connexionUtilisateur(w, r, secretKey)
 			})
+			r.Get("/users/by-email", getUsersByEmail)
 		})
 	
 		address := ":4000" // Vous pouvez aussi utiliser flag ou cli pour permettre de configurer l'adresse

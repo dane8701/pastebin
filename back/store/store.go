@@ -40,4 +40,5 @@ type Store interface {
 	DeleteBinByID(ctx context.Context, id string) (*Bin, error)
 	GetUserByEmail(ctx context.Context, email string) (*User, error)
 	CreateUser(ctx context.Context, user User) (*User, error)
+	GetAllUsers(ctx context.Context) ([]User, error)
 }
