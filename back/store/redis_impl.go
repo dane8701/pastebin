@@ -197,17 +197,18 @@ func (e *redisDB) SetBinExpiration(ctx context.Context, BD string, expiration ti
 
 func (e *redisDB) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	if email == "" {
-		return nil, errors.Errorf("there is no email provided")
+		return nil, errors.Errorf("no email provided")
 	}
 
 	val, err := e.client.Get(ctx, "user:"+email).Result()
 	if err != nil {
-		return nil, errors.Wrapf(err, "couldnt query for user %s", email)
+		return nil, errors.Wrapf(err, "could not query for user %s", email)
 	}
 
-	var user User
-	if err := json.Unmarshal([]byte(val), &user); err != nil {
-		return nil, errors.Wrap(err, "couldnt parsing user from string")
+	user := User{}
+	err = json.Unmarshal([]byte(val), &user)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not parse user from string")
 	}
 
 	return &user, nil
@@ -236,4 +237,30 @@ func (e *redisDB) CreateUser(ctx context.Context, user User) (*User, error) {
 	}
 
 	return &user, nil
+}
+
+func (e *redisDB) GetAllUsers(ctx context.Context) ([]User, error) {
+	keys, err := e.client.Keys(ctx, "user:*").Result()
+	if err != nil {
+			return nil, errors.Wrap(err, "couldnt query for users")
+	}
+
+	users := []User{}
+
+	for _, id := range keys {
+			val, err := e.client.Get(ctx, id).Result()
+			if err != nil {
+					return nil, errors.Wrapf(err, "couldnt query for user %s", id)
+			}
+
+			u := User{}
+			err = json.Unmarshal([]byte(val), &u)
+			if err != nil {
+					return nil, errors.Wrap(err, "couldnt parsing user from string")
+			}
+
+			users = append(users, u)
+	}
+
+	return users, nil
 }
