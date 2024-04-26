@@ -1,16 +1,8 @@
 # pastebin
 
-Build:
-
-```
-    make
-or 
-    go build -o bin/pastebin cmd/main.go
-```
-
-Run:
+Run on two terminals different:
 
 ```
 docker-compose up
-./bin/pastebin 
+go run cmd/main.go
 ```
