@@ -3,13 +3,18 @@ package domain
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"pastebin/store"
+	"path/filepath"
+	"strings"
 	"time"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/crypto/bcrypt"
-	"pastebin/store"
 )
 
 func ServeAPI(svc store.Store, secretKey []byte) func() error {
@@ -29,6 +34,31 @@ func ServeAPI(svc store.Store, secretKey []byte) func() error {
 			if err != nil {
 				fmt.Fprintf(w, "%v", err.Error())
 			}
+		}
+
+		getFileByAlias := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			alias := chi.URLParam(r, "alias")
+
+			bin, err := svc.GetBinByAlias(r.Context(), alias)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			
+			// open file (check if exists)
+			_, err = os.Stat(bin.Contain)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode("file not exist ")
+				return
+			}
+
+			// force a download with the content- disposition field
+			w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(bin.Contain))
+
+			// serve file out.
+			http.ServeFile(w, r, bin.Contain)
 		}
 
 		// updateBinByID update the bin with the given ID
@@ -96,6 +126,53 @@ func ServeAPI(svc store.Store, secretKey []byte) func() error {
 
 				return
 			}
+
+			w.Header().Set("Content-Type", "application/x-www-form-urlencoded")
+
+			// set file size to 10MB max
+			err = r.ParseMultipartForm(10 << 20)
+			if err != nil {
+				log.Println(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode("Error parsing form")
+				return
+			}
+
+			// get file
+			f, handler, err := r.FormFile("file")
+			if err != nil {
+				log.Println(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode("something went wrong")
+				return
+			}
+			defer f.Close()
+
+			// get file extension
+			fileExtension := strings.ToLower(filepath.Ext(handler.Filename))
+
+			// create folders
+			path := filepath.Join(".", "files")
+			_ = os.MkdirAll(path, os.ModePerm)
+			fullPath := path + "/" + bin.Alias + fileExtension
+
+			// open and copy files
+			file, err := os.OpenFile(fullPath, os.O_WRONLY|os.O_CREATE, os.ModePerm)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode("something went wrong")
+				return
+			}
+			defer file.Close()
+		
+			_, err = io.Copy(file, f)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode("something went wrong")
+				return
+			}
+
+			bin.Contain = fullPath
 
 			bin, err = svc.CreateBin(r.Context(), *bin)
 			if err != nil {
@@ -201,6 +278,7 @@ func ServeAPI(svc store.Store, secretKey []byte) func() error {
 			r.Get("/bins", getBins)
 			r.Get("/bins/statistics", getStats)
 			r.Get("/bins/{alias}", getBinByAlias)
+			r.Get("/bins/file/{alias}", getFileByAlias)
 			r.Put("/bins/{binID}", updateBinByID)
 			r.Delete("/bins/{binID}", deleteBinsByID)
 			r.Post("/users/auth", inscriptionUtilisateur)
