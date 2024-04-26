@@ -77,8 +77,15 @@ func (e *redisDB) GetStats(ctx context.Context) (*Statistics, error) {
 
 		bins = append(bins, t)
 	}
+	clics := [] ClicByBin{}
 	stats := Statistics {}
 	// tout calculer et retourner un json de mets stats
+	for _, bin := range bins {
+		clic := ClicByBin{ BinID: bin.ID, Clic: bin.Clic } 
+		clics = append(clics, clic)
+	}
+	lenBins := len(bins)
+	stats = Statistics{ BinNumber: int32(lenBins), ClicByBin: clics}
 
 	return &stats, nil
 }
@@ -89,6 +96,14 @@ func (e *redisDB) CreateBin(ctx context.Context, bin Bin) (*Bin, error) {
 	value, err := json.Marshal(bin)
 	if err != nil {
 		return nil, errors.Wrapf(err, "couldnt json marshal bin %s", bin.ID)
+	}
+
+	val, err := e.client.Get(ctx, "bin:"+bin.Alias).Result()
+	if err != nil {
+		return nil, errors.Wrapf(err, "couldnt if this alias already exist %s", bin.Alias)
+	}
+	if val == bin.Alias {
+		return nil, errors.New( "This Alias already exist: " + bin.Alias)
 	}
 
 	err = e.client.Set(ctx, "bin:"+bin.ID, string(value), 0).Err()
@@ -170,8 +185,8 @@ func (e *redisDB) DeleteBinByID(ctx context.Context, id string) (*Bin, error) {
 	return &t, nil
 }
 
-func (e *redisDB) SetBinExpiration(ctx context.Context, binID string, expiration time.Duration) error {
-	key := "bin:" + binID
+func (e *redisDB) SetBinExpiration(ctx context.Context, BD string, expiration time.Duration) error {
+	key := "bin:" + BD
 	return e.client.Expire(ctx, key, expiration).Err()
 }
 

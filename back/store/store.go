@@ -16,14 +16,19 @@ type Bin struct {
 }
 
 type Statistics struct {
-	binNumber int32 `json:"bin_number"`
-	clicByBin any   `json:"clic_by_bin"`
+	BinNumber int32 		`json:"bin_number"`
+	ClicByBin []ClicByBin  `json:"clic_by_bin"`
+}
+
+type ClicByBin struct {
+	BinID string `json:"bin_id"`
+	Clic int32   `json:"clic"`
 }
 
 type User struct {
-	ID        			string    `json:"id"`
-	Email     			string    `json:"email"`
-	MotDePasse      string    `json:"mot_de_passe"`
+	ID        		string    	`json:"id"`
+	Email     		string    	`json:"email"`
+	MotDePasse      string    	`json:"mot_de_passe"`
 }
 
 type Store interface {
