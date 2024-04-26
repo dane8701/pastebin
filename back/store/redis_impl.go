@@ -3,7 +3,9 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"time"
+
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
@@ -77,47 +79,46 @@ func (e *redisDB) GetStats(ctx context.Context) (*Statistics, error) {
 
 		bins = append(bins, t)
 	}
-	clics := [] ClicByBin{}
-	stats := Statistics {}
+	clics := []ClicByBin{}
+	stats := Statistics{}
 	// tout calculer et retourner un json de mets stats
 	for _, bin := range bins {
-		clic := ClicByBin{ BinID: bin.ID, Clic: bin.Clic } 
+		clic := ClicByBin{BinID: bin.ID, Clic: bin.Clic}
 		clics = append(clics, clic)
 	}
 	lenBins := len(bins)
-	stats = Statistics{ BinNumber: int32(lenBins), ClicByBin: clics}
+	stats = Statistics{BinNumber: int32(lenBins), ClicByBin: clics}
 
 	return &stats, nil
 }
 
 func (e *redisDB) CreateBin(ctx context.Context, bin Bin) (*Bin, error) {
-	bin.ID = uuid.NewString()
+	keys := e.client.Keys(ctx, "bin:"+bin.Alias+":*").Val()
+	if len(keys) != 0 {
+		return nil, errors.New(bin.Alias + " already exists as an alias")
+	}
 
+	bin.ID = uuid.NewString()
 	value, err := json.Marshal(bin)
 	if err != nil {
 		return nil, errors.Wrapf(err, "couldnt json marshal bin %s", bin.ID)
 	}
 
-	val, err := e.client.Get(ctx, "bin:"+bin.Alias).Result()
-	if err != nil {
-		return nil, errors.Wrapf(err, "couldnt if this alias already exist %s", bin.Alias)
-	}
-	if val == bin.Alias {
-		return nil, errors.New( "This Alias already exist: " + bin.Alias)
-	}
-
-	err = e.client.Set(ctx, "bin:"+bin.ID, string(value), 0).Err()
+	expiration := 30 * 24 * time.Hour
+	err = e.client.SetEx(ctx, redisKeyFrom(bin), string(value), expiration).Err()
 	if err != nil {
 		return nil, errors.Wrapf(err, "couldnt create bin %s", bin.ID)
 	}
 
-	expiration := 30 * 24 * time.Hour
-	err = e.SetBinExpiration(ctx, bin.ID, expiration)
-	if err != nil {
-			return nil, errors.Wrapf(err, "couldnt set expiration for bin %s", bin.ID)
+	return &bin, nil
+}
+
+func redisKeyFrom(bin Bin) string {
+	if strings.TrimSpace(bin.Alias) == "" {
+		return "bin:" + bin.ID
 	}
 
-	return &bin, nil
+	return "bin:" + bin.Alias + ":" + bin.ID
 }
 
 func (e *redisDB) GetBinByAlias(ctx context.Context, alias string) (*Bin, error) {
@@ -125,7 +126,11 @@ func (e *redisDB) GetBinByAlias(ctx context.Context, alias string) (*Bin, error)
 		return nil, errors.Errorf("there is no alias provided")
 	}
 
-	val, err := e.client.Get(ctx, "bin:"+alias).Result()
+	keys := e.client.Keys(ctx, "bin:"+alias+":*").Val()
+	if len(keys) == 0 {
+		return nil, errors.New(alias + "couldnt query for bin")
+	}
+	val, err := e.client.Get(ctx, keys[0]).Result()
 	if err != nil {
 		return nil, errors.Wrapf(err, "couldnt query for bin %s", alias)
 	}
@@ -192,17 +197,17 @@ func (e *redisDB) SetBinExpiration(ctx context.Context, BD string, expiration ti
 
 func (e *redisDB) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	if email == "" {
-			return nil, errors.Errorf("there is no email provided")
+		return nil, errors.Errorf("there is no email provided")
 	}
 
 	val, err := e.client.Get(ctx, "user:"+email).Result()
 	if err != nil {
-			return nil, errors.Wrapf(err, "couldnt query for user %s", email)
+		return nil, errors.Wrapf(err, "couldnt query for user %s", email)
 	}
 
 	var user User
 	if err := json.Unmarshal([]byte(val), &user); err != nil {
-			return nil, errors.Wrap(err, "couldnt parsing user from string")
+		return nil, errors.Wrap(err, "couldnt parsing user from string")
 	}
 
 	return &user, nil
@@ -215,19 +220,19 @@ func (e *redisDB) CreateUser(ctx context.Context, user User) (*User, error) {
 	// Hacher le mot de passe
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.MotDePasse), bcrypt.DefaultCost)
 	if err != nil {
-			return nil, errors.Wrap(err, "failed to hash password")
+		return nil, errors.Wrap(err, "failed to hash password")
 	}
 	user.MotDePasse = string(hashedPassword)
 
 	userData, err := json.Marshal(user)
 	if err != nil {
-			return nil, errors.Wrap(err, "failed to marshal user data")
+		return nil, errors.Wrap(err, "failed to marshal user data")
 	}
 
 	key := "user:" + userID
 	err = e.client.Set(ctx, key, string(userData), 0).Err()
 	if err != nil {
-			return nil, errors.Wrap(err, "failed to create user in database")
+		return nil, errors.Wrap(err, "failed to create user in database")
 	}
 
 	return &user, nil

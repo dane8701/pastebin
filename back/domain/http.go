@@ -119,18 +119,11 @@ func ServeAPI(svc store.Store, secretKey []byte) func() error {
 		}
 
 		createBin := func(w http.ResponseWriter, r *http.Request) {
-			bin := &store.Bin{}
-			err := json.NewDecoder(r.Body).Decode(bin)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnprocessableEntity)
-
-				return
-			}
-
 			w.Header().Set("Content-Type", "application/x-www-form-urlencoded")
-
+			
+			bin := &store.Bin{}
 			// set file size to 10MB max
-			err = r.ParseMultipartForm(10 << 20)
+			err := r.ParseMultipartForm(10 << 20)
 			if err != nil {
 				log.Println(err)
 				w.WriteHeader(http.StatusInternalServerError)
@@ -138,12 +131,15 @@ func ServeAPI(svc store.Store, secretKey []byte) func() error {
 				return
 			}
 
+			// get alias
+			bin.Alias = r.Form.Get("Alias")
+
 			// get file
-			f, handler, err := r.FormFile("file")
+			f, handler, err := r.FormFile("Contain")
 			if err != nil {
 				log.Println(err)
 				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode("something went wrong")
+				json.NewEncoder(w).Encode("[get file] something went wrong")
 				return
 			}
 			defer f.Close()
@@ -160,7 +156,7 @@ func ServeAPI(svc store.Store, secretKey []byte) func() error {
 			file, err := os.OpenFile(fullPath, os.O_WRONLY|os.O_CREATE, os.ModePerm)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode("something went wrong")
+				json.NewEncoder(w).Encode("[open file] something went wrong")
 				return
 			}
 			defer file.Close()
@@ -168,7 +164,7 @@ func ServeAPI(svc store.Store, secretKey []byte) func() error {
 			_, err = io.Copy(file, f)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode("something went wrong")
+				json.NewEncoder(w).Encode("[copy file] something went wrong")
 				return
 			}
 
