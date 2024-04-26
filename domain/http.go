@@ -196,15 +196,15 @@ func ServeAPI(svc store.Store, secretKey []byte) func() error {
 
 		router := chi.NewRouter()
 
-		router.Route("/bins", func(r chi.Router) {
-			r.Post("/", createBin)
-			r.Get("/", getBins)
-			r.Get("/statistics", getStats)
-			r.Get("/{alias}", getBinByAlias)
-			r.Put("/{binID}", updateBinByID)
-			r.Delete("/{binID}", deleteBinsByID)
-			r.Post("/auth", inscriptionUtilisateur)
-			r.Post("/login", func(w http.ResponseWriter, r *http.Request) {
+		router.Route("/", func(r chi.Router) {
+			r.Post("/bins", createBin)
+			r.Get("/bins", getBins)
+			r.Get("/bins/statistics", getStats)
+			r.Get("/bins/{alias}", getBinByAlias)
+			r.Put("/bins/{binID}", updateBinByID)
+			r.Delete("/bins/{binID}", deleteBinsByID)
+			r.Post("/users/auth", inscriptionUtilisateur)
+			r.Post("/users/login", func(w http.ResponseWriter, r *http.Request) {
 					connexionUtilisateur(w, r, secretKey)
 			})
 		})
