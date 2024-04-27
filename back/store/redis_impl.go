@@ -197,12 +197,16 @@ func (e *redisDB) SetBinExpiration(ctx context.Context, BD string, expiration ti
 
 func (e *redisDB) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	if email == "" {
-		return nil, errors.Errorf("no email provided")
+		return nil, errors.Errorf("there is no email provided")
 	}
 
-	val, err := e.client.Get(ctx, "user:"+email).Result()
+	keys := e.client.Keys(ctx, "user:"+email+":*").Val()
+	if len(keys) == 0 {
+			return nil, errors.New(email + "couldnt query for user")
+	}
+	val, err := e.client.Get(ctx, keys[0]).Result()
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not query for user %s", email)
+			return nil, errors.Wrapf(err, "couldnt query for user %s", email)
 	}
 
 	user := User{}
@@ -218,7 +222,7 @@ func (e *redisDB) CreateUser(ctx context.Context, user User) (*User, error) {
 	userID := uuid.NewString()
 	user.ID = userID
 
-	// Hacher le mot de passe
+	//hâcher le mot de passe
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.MotDePasse), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to hash password")
@@ -230,7 +234,7 @@ func (e *redisDB) CreateUser(ctx context.Context, user User) (*User, error) {
 		return nil, errors.Wrap(err, "failed to marshal user data")
 	}
 
-	key := "user:" + userID
+	key := "user:"+user.Email+":"+userID
 	err = e.client.Set(ctx, key, string(userData), 0).Err()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create user in database")
@@ -263,4 +267,12 @@ func (e *redisDB) GetAllUsers(ctx context.Context) ([]User, error) {
 	}
 
 	return users, nil
+}
+
+func (e *redisDB) DropAllUsers(ctx context.Context) error {
+	_, err := e.client.FlushDB(ctx).Result()
+	if err != nil {
+		return errors.Wrap(err, "failed to drop all users")
+	}
+	return nil
 }

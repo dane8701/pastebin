@@ -227,15 +227,9 @@ func ServeAPI(svc store.Store, secretKey []byte) func() error {
 					return
 			}
 	
-			hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.MotDePasse), bcrypt.DefaultCost)
-			if err != nil {
-					http.Error(w, "Failed to hash password", http.StatusInternalServerError)
-					return
-			}
-	
 			newUser := store.User{
 					Email:      user.Email,
-					MotDePasse: string(hashedPassword),
+					MotDePasse: user.MotDePasse,
 			}
 	
 			_, err = svc.CreateUser(r.Context(), newUser)
@@ -257,12 +251,12 @@ func ServeAPI(svc store.Store, secretKey []byte) func() error {
 	
 			storedUser, err := svc.GetUserByEmail(r.Context(), user.Email)
 			if err != nil {
-					http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+					http.Error(w, "Invalid email", http.StatusUnauthorized)
 					return
 			}
 	
 			if err := bcrypt.CompareHashAndPassword([]byte(storedUser.MotDePasse), []byte(user.MotDePasse)); err != nil {
-					http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+					http.Error(w, "Invalid password", http.StatusUnauthorized)
 					return
 			}
 	
@@ -282,19 +276,10 @@ func ServeAPI(svc store.Store, secretKey []byte) func() error {
 			json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
 		}
 
-		getUsersByEmail := func(w http.ResponseWriter, r *http.Request) {
-			var requestData struct {
-					Email string `json:"email"`
-			}
-			if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
-					http.Error(w, "Failed to parse request body", http.StatusBadRequest)
-					return
-			}
-			defer r.Body.Close()
-	
-			email := requestData.Email
-			if email == "" {
-					http.Error(w, "No email provided", http.StatusBadRequest)
+		getUserByEmail := func(w http.ResponseWriter, r *http.Request) {
+			var email string
+			if err := json.NewDecoder(r.Body).Decode(&email); err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
 					return
 			}
 	
@@ -304,17 +289,23 @@ func ServeAPI(svc store.Store, secretKey []byte) func() error {
 					return
 			}
 	
-			if user == nil {
-					http.Error(w, "User not found", http.StatusNotFound)
-					return
-			}
-	
-			w.Header().Set("Content-Type", "application/json")
-			if err := json.NewEncoder(w).Encode(user); err != nil {
+			err = json.NewEncoder(w).Encode(user)
+			if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 			}
-		}	
+		}
+	
+		dropAllUsers := func(w http.ResponseWriter, r *http.Request) {
+			err := svc.DropAllUsers(r.Context())
+			if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+			}
+	
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("All users dropped successfully"))
+		}
 
 		router := chi.NewRouter()
 
@@ -331,7 +322,8 @@ func ServeAPI(svc store.Store, secretKey []byte) func() error {
 			r.Post("/users/login", func(w http.ResponseWriter, r *http.Request) {
 					connexionUtilisateur(w, r, secretKey)
 			})
-			r.Get("/users/by-email", getUsersByEmail)
+			r.Get("/users/by-email", getUserByEmail)
+			r.Post("/users/drop-all-users", dropAllUsers)
 		})
 	
 		address := ":4000" // Vous pouvez aussi utiliser flag ou cli pour permettre de configurer l'adresse

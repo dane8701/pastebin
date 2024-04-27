@@ -41,4 +41,5 @@ type Store interface {
 	GetUserByEmail(ctx context.Context, email string) (*User, error)
 	CreateUser(ctx context.Context, user User) (*User, error)
 	GetAllUsers(ctx context.Context) ([]User, error)
+	DropAllUsers(ctx context.Context) error
 }
