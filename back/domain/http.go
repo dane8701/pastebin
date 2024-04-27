@@ -275,26 +275,6 @@ func ServeAPI(svc store.Store, secretKey []byte) func() error {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
 		}
-
-		getUserByEmail := func(w http.ResponseWriter, r *http.Request) {
-			var email string
-			if err := json.NewDecoder(r.Body).Decode(&email); err != nil {
-					http.Error(w, err.Error(), http.StatusBadRequest)
-					return
-			}
-	
-			user, err := svc.GetUserByEmail(r.Context(), email)
-			if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-			}
-	
-			err = json.NewEncoder(w).Encode(user)
-			if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-			}
-		}
 	
 		dropAllUsers := func(w http.ResponseWriter, r *http.Request) {
 			err := svc.DropAllUsers(r.Context())
@@ -322,7 +302,6 @@ func ServeAPI(svc store.Store, secretKey []byte) func() error {
 			r.Post("/users/login", func(w http.ResponseWriter, r *http.Request) {
 					connexionUtilisateur(w, r, secretKey)
 			})
-			r.Get("/users/by-email", getUserByEmail)
 			r.Post("/users/drop-all-users", dropAllUsers)
 		})
 	
