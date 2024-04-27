@@ -148,7 +148,7 @@ func (e *redisDB) GetBinByAlias(ctx context.Context, alias string) (*Bin, error)
 		return nil, errors.Wrapf(err, "couldnt json marshal bin %s", t.ID)
 	}
 
-	err = e.client.Set(ctx, "bin:"+t.ID, string(value), 0).Err()
+	err = e.client.Set(ctx, "bin:"+t.Alias+":"+t.ID, string(value), 0).Err()
 	if err != nil {
 		return nil, errors.Wrapf(err, "couldnt update bin to count the clics %s", t.ID)
 	}
