@@ -1,0 +1,238 @@
+{
+	"info": {
+		"_postman_id": "4d8d5938-ccb0-4738-a973-eb00e45a3b10",
+		"name": "pastebin",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "15243515",
+		"_collection_link": "https://solar-meadow-10696.postman.co/workspace/My-Workspace~2f037542-46aa-4a5b-8064-66dcfc0608d1/collection/15243515-4d8d5938-ccb0-4738-a973-eb00e45a3b10?action=share&source=collection_link&creator=15243515"
+	},
+	"item": [
+		{
+			"name": "bin",
+			"item": [
+				{
+					"name": "list",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/bins",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"bins"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/bins/ok1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"bins",
+								"ok1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get file",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/bins/file/ok1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"bins",
+								"file",
+								"ok1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get statistics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/bins/statistics",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"bins",
+								"statistics"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "Alias",
+									"value": "ok2",
+									"type": "text"
+								},
+								{
+									"key": "Contain",
+									"type": "file",
+									"src": "postman-cloud:///1ef03d37-d038-4460-9a13-f40c3b750f57"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/bins",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"bins"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "user",
+			"item": [
+				{
+					"name": "login",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"test@gmail.com\",\n    \"mot_de_passe\": \"test\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/users/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "signup",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"test@gmail.com\",\n    \"mot_de_passe\": \"test\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/users/auth",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"auth"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get by mail",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"test@gmail.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/users/by-email",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"by-email"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:4000",
+			"type": "string"
+		}
+	]
+}
