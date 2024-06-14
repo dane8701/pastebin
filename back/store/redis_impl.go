@@ -162,7 +162,7 @@ func (e *redisDB) UpdateBin(ctx context.Context, bin Bin) (*Bin, error) {
 		return nil, errors.Wrapf(err, "couldnt json marshal bin %s", bin.ID)
 	}
 
-	err = e.client.Set(ctx, "bin:"+bin.ID, string(value), 0).Err()
+	err = e.client.Set(ctx, "bin:*:"+bin.ID, string(value), 0).Err()
 	if err != nil {
 		return nil, errors.Wrapf(err, "couldnt update bin %s", bin.ID)
 	}
@@ -171,7 +171,7 @@ func (e *redisDB) UpdateBin(ctx context.Context, bin Bin) (*Bin, error) {
 }
 
 func (e *redisDB) DeleteBinByID(ctx context.Context, id string) (*Bin, error) {
-	val, err := e.client.Get(ctx, "bin:"+id).Result()
+	val, err := e.client.Get(ctx, "bin:*:"+id).Result()
 	if err != nil {
 		return nil, errors.Wrapf(err, "couldnt query for bin %s", id)
 	}
